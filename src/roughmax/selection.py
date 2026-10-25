@@ -7,16 +7,18 @@ overstates it; Monte Carlo needs a factorisation of C and gives no structural in
 
 This module applies the comparison method of the paper (Sudakov-Fernique against tree
 processes) to an empirical correlation matrix. With the canonical distance
-d(i, j) = (E (Z_i - Z_j)^2)^{1/2} = sqrt(2 (1 - C_ij)):
+d(i, j) = (E (Z_i - Z_j)^2)^{1/2} = sqrt(2 (1 - C_ij)), every dendrogram shape gives
 
-* complete-linkage clustering yields an ultrametric u >= d (merge height = largest
-  distance between the merged clusters), so the tree process with increments u dominates
-  Z and E max Z <= E max(tree);
-* single-linkage clustering yields the subdominant ultrametric u <= d, and so does single
-  linkage on any subset, so E max(subset tree) <= E max Z.
+* a majorant: give each merge the largest distance across its split (raised to its
+  children's heights); the resulting ultrametric u satisfies u >= d, so the tree process
+  dominates Z in the Sudakov-Fernique sense and E max Z <= E max(tree);
+* a minorant: give each merge the smallest distance across its split (lowered to its
+  parent's height); then u <= d and E max(tree) <= E max Z, also on any subset of the
+  strategies (dropping points can only lower E max Z, but can raise the minorant).
 
 E max of a tree process is computed exactly (up to quadrature) by a CDF recursion over
-the dendrogram, without Monte Carlo.
+the dendrogram, without Monte Carlo. The bracket is tight when the correlation structure
+is hierarchical (families of related strategies) and loose when it is flat.
 """
 
 from __future__ import annotations
@@ -45,11 +47,56 @@ def corr_distance(C: np.ndarray) -> np.ndarray:
     return (d + d.T) / 2.0
 
 
+TOPOLOGIES = ("single", "complete", "average", "weighted", "ward")
+
+
 def linkage_tree(C: np.ndarray, method: str) -> np.ndarray:
-    """Hierarchical clustering of the canonical distance ('complete' or 'single')."""
-    if method not in ("complete", "single"):
-        raise ValueError("only complete and single linkage give one-sided ultrametric bounds")
+    """Hierarchical clustering of the canonical distance with one of TOPOLOGIES.
+
+    Single and complete linkage heights are already one-sided ultrametric bounds; for the
+    other methods only the tree shape is used, through refit_heights.
+    """
+    if method not in TOPOLOGIES:
+        raise ValueError(f"method must be one of {TOPOLOGIES}")
     return linkage(squareform(corr_distance(C), checks=False), method=method)
+
+
+def _members(Z: np.ndarray, n: int) -> list[np.ndarray]:
+    members: list[np.ndarray] = [np.array([i]) for i in range(n)]
+    for a, b in Z[:, :2].astype(int):
+        members.append(np.concatenate([members[a], members[b]]))
+    return members
+
+
+def refit_heights(Z: np.ndarray, d: np.ndarray, mode: str) -> np.ndarray:
+    """Tightest ultrametric bound with the tree shape of Z.
+
+    mode="upper": the merge height of each node is the largest distance across its split,
+    raised to its children's heights, so u >= d (a Sudakov-Fernique majorant).
+    mode="lower": the merge height is the smallest distance across its split, lowered to
+    its parent's height, so u <= d (a minorant).
+    """
+    Z = np.array(Z, dtype=float)
+    n = Z.shape[0] + 1
+    members = _members(Z, n)
+    across = np.empty(n - 1)
+    for k, (a, b) in enumerate(Z[:, :2].astype(int)):
+        block = d[np.ix_(members[a], members[b])]
+        across[k] = block.max() if mode == "upper" else block.min()
+    heights = np.zeros(2 * n - 1)
+    if mode == "upper":
+        for k, (a, b) in enumerate(Z[:, :2].astype(int)):
+            heights[n + k] = max(across[k], heights[a], heights[b])
+    elif mode == "lower":
+        heights[n:] = across
+        for k in range(n - 2, -1, -1):  # parents come after children: sweep top-down
+            for child in Z[k, :2].astype(int):
+                if child >= n:
+                    heights[child] = min(heights[child], heights[n + k])
+    else:
+        raise ValueError("mode must be 'upper' or 'lower'")
+    Z[:, 2] = heights[n:]
+    return Z
 
 
 def _smooth(cdf: np.ndarray, sd: float, dx: float) -> np.ndarray:
@@ -102,13 +149,30 @@ def _separated_subset(d: np.ndarray, radius: float) -> np.ndarray:
     return np.asarray(chosen)
 
 
-def sandwich_bounds(C: np.ndarray, subset_radii: list[float] | None = None) -> dict:
-    """Certified bounds lower <= E max Z <= upper for Z ~ N(0, C)."""
+def sandwich_bounds(
+    C: np.ndarray,
+    topologies: tuple[str, ...] = TOPOLOGIES,
+    subset_radii: list[float] | None = None,
+) -> dict:
+    """Certified bounds lower <= E max Z <= upper for Z ~ N(0, C).
+
+    Every tree shape gives a valid majorant and a valid minorant after refit_heights; the
+    upper bound is the best majorant over the shapes, and the lower bound the best minorant
+    over the shapes on the full set and on well-separated subsets (the Cantor idea of the
+    paper: dropping points can only lower E max, but can raise the minorant).
+    """
     C = np.asarray(C, dtype=float)
     d = corr_distance(C)
-    upper = tree_expected_max(linkage_tree(C, "complete"))
-    lower = tree_expected_max(linkage_tree(C, "single"))
-    method, subset_size = "single linkage", C.shape[0]
+    upper, upper_method = math.inf, ""
+    lower, lower_method, subset_size = -math.inf, "", C.shape[0]
+    for method in topologies:
+        Z = linkage_tree(C, method)
+        value = tree_expected_max(refit_heights(Z, d, "upper"))
+        if value < upper:
+            upper, upper_method = value, method
+        value = tree_expected_max(refit_heights(Z, d, "lower"))
+        if value > lower:
+            lower, lower_method = value, method
     if subset_radii is None:
         off = d[np.triu_indices_from(d, k=1)]
         subset_radii = list(np.quantile(off, [0.05, 0.1, 0.2, 0.35, 0.5])) if off.size else []
@@ -116,14 +180,19 @@ def sandwich_bounds(C: np.ndarray, subset_radii: list[float] | None = None) -> d
         idx = _separated_subset(d, radius)
         if idx.size < 2:
             continue
-        value = tree_expected_max(linkage_tree(C[np.ix_(idx, idx)], "single"))
-        if value > lower:
-            lower, method, subset_size = (
-                value,
-                f"single linkage on {radius:.3f}-separated subset",
-                idx.size,
-            )
-    return {"lower": lower, "upper": upper, "lower_method": method, "subset_size": int(subset_size)}
+        sub_C, sub_d = C[np.ix_(idx, idx)], d[np.ix_(idx, idx)]
+        for method in topologies:
+            value = tree_expected_max(refit_heights(linkage_tree(sub_C, method), sub_d, "lower"))
+            if value > lower:
+                lower, subset_size = value, idx.size
+                lower_method = f"{method} on {radius:.3f}-separated subset"
+    return {
+        "lower": lower,
+        "upper": upper,
+        "lower_method": lower_method,
+        "upper_method": upper_method,
+        "subset_size": int(subset_size),
+    }
 
 
 def mc_expected_max(

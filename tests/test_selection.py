@@ -75,3 +75,41 @@ def test_mc_handles_non_psd_input():
     C = np.array([[1.0, 0.9, -0.9], [0.9, 1.0, 0.9], [-0.9, 0.9, 1.0]])
     mc, se = selection.mc_expected_max(C, 2000, np.random.default_rng(0))
     assert np.isfinite(mc) and se > 0
+
+
+def _signed_factor_corr(n, k, seed):
+    rng = np.random.default_rng(seed)
+    B = rng.standard_normal((n, k))
+    cov = B @ B.T + np.diag(rng.uniform(0.2, 0.8, size=n))
+    d = np.sqrt(np.diag(cov))
+    return cov / np.outer(d, d)
+
+
+def test_refit_heights_dominate_and_are_dominated():
+    C = _signed_factor_corr(60, 3, 11)
+    d = selection.corr_distance(C)
+    from scipy.cluster.hierarchy import cophenet
+
+    for method in ("average", "ward", "single", "complete"):
+        Z = selection.linkage_tree(C, method)
+        up = selection.refit_heights(Z, d, "upper")
+        lo = selection.refit_heights(Z, d, "lower")
+        coph_up, coph_lo = cophenet(up), cophenet(lo)
+        iu = np.triu_indices(60, 1)
+        assert np.all(coph_up >= d[iu] - 1e-12)
+        assert np.all(coph_lo <= d[iu] + 1e-12)
+        for tree in (up, lo):
+            for k in range(tree.shape[0]):
+                for child in tree[k, :2].astype(int):
+                    if child >= 60:
+                        assert tree[child - 60, 2] <= tree[k, 2] + 1e-12
+
+
+def test_multi_topology_sandwich_is_tighter_and_valid():
+    C = _signed_factor_corr(300, 4, 12)
+    b = selection.sandwich_bounds(C)
+    old_upper = selection.tree_expected_max(selection.linkage_tree(C, "complete"))
+    old_lower = selection.tree_expected_max(selection.linkage_tree(C, "single"))
+    mc, se = selection.mc_expected_max(C, 30000, np.random.default_rng(13))
+    assert b["upper"] <= old_upper + 1e-9 and b["lower"] >= old_lower - 1e-9
+    assert b["lower"] <= mc + 3 * se and mc <= b["upper"] + 3 * se

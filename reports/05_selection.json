@@ -1,0 +1,185 @@
+{
+  "best": {
+    "annualised_sharpe": 1.1877590716876674,
+    "deflated_sharpe": {
+      "certified_upper": 0.39177589907415616,
+      "iid": 0.4077563618586162,
+      "monte_carlo": 0.6675029827130096
+    },
+    "name": "ETH|tsmom26|vt1|rb5",
+    "z": 3.1382073533624992
+  },
+  "cluster_sizes_at_11": [
+    142,
+    28,
+    164,
+    142,
+    62,
+    70,
+    148,
+    250,
+    136,
+    290,
+    152
+  ],
+  "configurations": 1584,
+  "days": 2548,
+  "end": "2026-09-30",
+  "expected_max": {
+    "N": 1584,
+    "effective_trials_mc": 177.24950111242003,
+    "effective_trials_upper": 1839.9802293300363,
+    "iid_bailey_lopez_de_prado": 3.38370883440378,
+    "iid_exact": 3.3712117218950484,
+    "monte_carlo": 2.705765096161524,
+    "monte_carlo_se": 0.004007011009474122,
+    "sandwich_lower": 1.8114666869979956,
+    "sandwich_lower_method": "single on 0.929-separated subset",
+    "sandwich_upper": 3.4125288465164765,
+    "seconds_monte_carlo": 0.49210596084594727,
+    "seconds_sandwich": 8.387151002883911
+  },
+  "families": [
+    {
+      "N": 144,
+      "effective_trials_mc": 13.499837924935038,
+      "effective_trials_upper": 31.040070812469192,
+      "family": "ADA",
+      "iid": 2.635271049002498,
+      "lower": 1.1500063764879194,
+      "monte_carlo": 1.6860666705213692,
+      "monte_carlo_se": 0.005242747412886022,
+      "upper": 2.0570025765785136
+    },
+    {
+      "N": 144,
+      "effective_trials_mc": 14.402230505303839,
+      "effective_trials_upper": 33.68704327905894,
+      "family": "BNB",
+      "iid": 2.635271049002498,
+      "lower": 1.1504832333107515,
+      "monte_carlo": 1.7167858108189713,
+      "monte_carlo_se": 0.00532752628403987,
+      "upper": 2.0909070749937033
+    },
+    {
+      "N": 144,
+      "effective_trials_mc": 15.878427115524213,
+      "effective_trials_upper": 37.97522274263911,
+      "family": "BTC",
+      "iid": 2.635271049002498,
+      "lower": 1.2432447203072572,
+      "monte_carlo": 1.762454217767669,
+      "monte_carlo_se": 0.005062033701183052,
+      "upper": 2.1398274476839134
+    },
+    {
+      "N": 144,
+      "effective_trials_mc": 16.262244697342155,
+      "effective_trials_upper": 39.757528934907675,
+      "family": "ETC",
+      "iid": 2.635271049002498,
+      "lower": 1.2180205936389052,
+      "monte_carlo": 1.7735152914123795,
+      "monte_carlo_se": 0.00515439143000651,
+      "upper": 2.1583329359268912
+    },
+    {
+      "N": 144,
+      "effective_trials_mc": 14.832060802751068,
+      "effective_trials_upper": 31.982196610836855,
+      "family": "ETH",
+      "iid": 2.635271049002498,
+      "lower": 1.214877404133298,
+      "monte_carlo": 1.7306314420743976,
+      "monte_carlo_se": 0.005118014117990595,
+      "upper": 2.0694379003938277
+    },
+    {
+      "N": 144,
+      "effective_trials_mc": 11.613066924422801,
+      "effective_trials_upper": 29.722447475382925,
+      "family": "EW",
+      "iid": 2.635271049002498,
+      "lower": 0.9899689450794655,
+      "monte_carlo": 1.613190119770435,
+      "monte_carlo_se": 0.005306792166083888,
+      "upper": 2.038864212990397
+    },
+    {
+      "N": 144,
+      "effective_trials_mc": 15.948650521633754,
+      "effective_trials_upper": 35.748665848922364,
+      "family": "LINK",
+      "iid": 2.635271049002498,
+      "lower": 1.2640569266341606,
+      "monte_carlo": 1.7645012321138656,
+      "monte_carlo_se": 0.005135592784564156,
+      "upper": 2.1152642008085234
+    },
+    {
+      "N": 144,
+      "effective_trials_mc": 16.455275129484196,
+      "effective_trials_upper": 37.62949866244194,
+      "family": "LTC",
+      "iid": 2.635271049002498,
+      "lower": 1.2472217115696065,
+      "monte_carlo": 1.7789631376099362,
+      "monte_carlo_se": 0.005095772386808715,
+      "upper": 2.136123019274086
+    },
+    {
+      "N": 144,
+      "effective_trials_mc": 12.761254397316874,
+      "effective_trials_upper": 29.12228023103056,
+      "family": "TRX",
+      "iid": 2.635271049002498,
+      "lower": 1.1551543686648262,
+      "monte_carlo": 1.6590640436891864,
+      "monte_carlo_se": 0.005305529389346354,
+      "upper": 2.030293328753043
+    },
+    {
+      "N": 144,
+      "effective_trials_mc": 20.111665076387506,
+      "effective_trials_upper": 84.93802998262039,
+      "family": "XLM",
+      "iid": 2.635271049002498,
+      "lower": 1.229515361780007,
+      "monte_carlo": 1.8699592924334916,
+      "monte_carlo_se": 0.004814666683235897,
+      "upper": 2.4486791226839024
+    },
+    {
+      "N": 144,
+      "effective_trials_mc": 20.364744003014263,
+      "effective_trials_upper": 71.31767029891546,
+      "family": "XRP",
+      "iid": 2.635271049002498,
+      "lower": 1.2985828864375595,
+      "monte_carlo": 1.8755306684080157,
+      "monte_carlo_se": 0.004937528808283321,
+      "upper": 2.3843095962101746
+    }
+  ],
+  "mean_abs_correlation": 0.24177328365788306,
+  "split_sample": {
+    "all_mean_sr_in_sample": 0.3388022644208904,
+    "all_mean_sr_out_of_sample": 0.14125411857616532,
+    "best_in_sample": "ADA|ma10-50|vt0|rb5",
+    "best_sr_in_sample": 1.6247262439875418,
+    "best_sr_out_of_sample": 0.39494247911379854,
+    "first_half": [
+      "2019-10-10",
+      "2023-04-05"
+    ],
+    "second_half": [
+      "2023-04-06",
+      "2026-09-30"
+    ],
+    "spearman_is_oos": 0.09230923775901866,
+    "top20_mean_sr_in_sample": 1.4362375654658013,
+    "top20_mean_sr_out_of_sample": 0.3727124289247891
+  },
+  "start": "2019-10-10"
+}
