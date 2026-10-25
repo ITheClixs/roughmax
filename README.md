@@ -16,9 +16,10 @@ Everything below is produced by the scripts in [`experiments/`](experiments) fro
 |---|---|
 | Simulation | Even with 2²⁰ ≈ 10⁶ grid points, the simulated maximum of fBm with H = 0.05 stays **17% below the proved lower bound** on the true expected supremum. The discretisation bias decays like n^(−r) with fitted r = 0.053 ± 0.017, 0.118 ± 0.024 and 0.249 ± 0.060 for H = 0.05, 0.1 and 0.2, which matches the paper's rate n^(−H). Extrapolating at the usual Brownian rate n^(−1/2) leaves the estimate below the proved bound; extrapolating at rate H lands inside it. |
 | Roughness | Daily log realised volatility of BTC and ETH (2019 to 2026, 5-minute bars) has **H = 0.131 (90% CI 0.112 to 0.153) and H = 0.132 (0.115 to 0.150)** once the weekly volatility cycle is removed. Without that step the estimate is biased down to 0.100 and 0.109. |
-| Peak-volatility risk | A three-parameter rough model, fitted on 2019 to 2022 using only lags of at most 30 days, predicts the 2022 to 2026 expected peak of log-volatility over horizons from 1 to 250 days with **8.1% (BTC) and 9.7% (ETH) mean relative error**. A mean-reverting OU log-volatility fitted to the same statistic gets 11.4% and 13.8%; Brownian log-volatility gets about 100%. |
-| Tails | Both Gaussian models under-cover the tails of volatility peaks, a sign of heavy tails. At the 1% level over 90 days the rough model is breached on 2.3% (BTC) and 1.7% (ETH) of test windows, OU on 6.2% and 6.0%. The rigorous bound from the paper is never breached more often than its nominal level. |
-| Selection bias | In a sweep of 1,584 trend-following strategies on 10 crypto assets, the null expected best z-score is 2.71 (Monte Carlo), not the 3.37 that the usual independent-trials assumption implies: the sweep behaves like **177 independent trials, not 1,584**. With the correct bar the deflated Sharpe confidence of the best strategy is 0.67 instead of 0.41. Within each strategy family the paper's tree comparison gives a **Monte-Carlo-free certified upper bound** (2.03 to 2.45, against 2.64 for independent trials). |
+| Peak-volatility risk | A rough model with two parameters (H, ν; the fitted noise level is zero), fitted on 2019 to 2022 using only lags of at most 30 days, predicts the 2022 to 2026 expected peak of log-volatility over horizons from 1 to 250 days with **7.8% (BTC) and 9.7% (ETH) mean relative error**. A mean-reverting Ornstein–Uhlenbeck log-volatility with a noise term, fitted to the same statistic, gets 10.0% and 12.5%; Brownian log-volatility gets about 100%. |
+| Tails | Both Gaussian models under-cover the tails of volatility peaks, a sign of heavy tails. At the 1% level over 90 days the rough model is breached on 1.7% (BTC) and 2.0% (ETH) of test windows, OU on 5.3% and 4.7%. The rigorous bound built from the paper is never breached more often than its nominal level. |
+| Intraday peaks | In the fitted BTC model, the expected 30-day peak of log-volatility is 0.72 on a daily grid, 1.02 hourly and 1.18 every 5 minutes. The paper **proves** that the continuous-time value is at least 1.01, so a daily grid misses at least 0.30, a factor of 1.35 in volatility. |
+| Selection bias | In a sweep of 1,584 trend-following strategies on 10 crypto assets, the null expected best z-score is 2.71 (Monte Carlo), not the 3.37 that the usual independent-trials assumption implies: the sweep behaves like **180 independent trials, not 1,584**. With the correct bar the deflated Sharpe confidence of the best strategy is 0.68 instead of 0.41. Within each strategy family, the paper's tree comparison gives a **Monte-Carlo-free certified upper bound** (2.06 to 2.39, against 2.64 for independent trials). |
 
 ## 1. Rough paths hide their peaks from simulation
 
@@ -30,7 +31,7 @@ with explicit two-sided bounds for every H, and it shows that the maximum over n
 
 ![Monte Carlo grid maxima against the proved bounds](reports/02_mc_vs_bounds.png)
 
-*Exact (circulant-embedding) simulation of max over n grid points, n = 2⁶ … 2²⁰. Grey band: the range in which the paper proves the true expected supremum lies. Blue: power-law fit A − c n^(−r) on n ≥ 2¹⁰; the fitted rates match H.*
+*Exact (circulant-embedding) simulation of the maximum over n grid points, n = 2⁶ … 2²⁰. Grey band: the range in which the paper proves the true expected supremum lies. Blue: power-law fit A − c n^(−r) on n ≥ 2¹⁰; the fitted rates match H. Orange: the paper's first-order formula, which is exact only as H → 0 and overstates the grid maximum at these values of H.*
 
 | H | grid max at n = 2²⁰ | proved range of E sup | fitted rate r | extrapolation at rate H | at rate 1/2 |
 |---|---|---|---|---|---|
@@ -38,9 +39,9 @@ with explicit two-sided bounds for every H, and it shows that the maximum over n
 | 0.10 | 2.55 | [2.13, 4.93] | 0.118 ± 0.024 | 3.24 | 2.62 |
 | 0.20 | 1.74 | [1.11, 3.71] | 0.249 ± 0.060 | 1.82 | 1.76 |
 
-At H = 0.05 the fitted curve needs about 2³⁰ grid points just to reach the proved lower bound. To first order, capturing 90% of the supremum of an H = 0.1 path on a uniform grid takes about 1.5 × 10⁹ points ([`01_theory.json`](reports/01_theory.json)).
+At H = 0.05 the fitted curve needs about 2³⁰ grid points just to reach the proved lower bound.
 
-![Bounds and captured fraction](reports/01_bounds.png)
+![Bounds](reports/01_bounds.png)
 
 ## 2. Crypto volatility is rough
 
@@ -52,28 +53,28 @@ The grey crosses show the raw series: dips at 7, 14, 21 and 28 days come from th
 
 ## 3. Peak-volatility risk
 
-How far can log-volatility rise over the next n days? The quantity is the peak excursion max_{1≤i≤n} (x_{t+i} − x_t). Under the rough model its mean is predicted by exact simulation and, to first order, by the paper's formula ν n^H Λ(H log n)/√H.
+How far can log-volatility rise over the next n days? The quantity is the peak excursion max_{1≤i≤n} (x_{t+i} − x_t). Under the rough model its distribution is simulated exactly; the paper's first-order formula ν n^H Λ(H log n)/√H gives the order of magnitude.
 
 ![Out-of-sample expected peak](reports/04_out_of_sample.png)
 
 *Parameters fitted on 2019-01 to 2022-11, peaks measured on 2022-11 to 2026-09.*
 
-| out of sample | rough (fitted H) | OU (H = 1/2, mean-reverting) | Brownian (H = 1/2) |
+| out of sample | rough | OU with noise (mean-reverting, H = 1/2) | Brownian (H = 1/2) |
 |---|---|---|---|
-| BTC: mean abs. error (log-vol), relative error (n ≥ 5) | **0.072, 8.1%** | 0.106, 11.4% | 0.884, 101% |
-| ETH | **0.081, 9.7%** | 0.119, 13.8% | 0.810, 94% |
+| BTC: mean abs. error (log-vol), relative error (n ≥ 5 days) | **0.071, 7.8%** | 0.093, 10.0% | 0.881, 101% |
+| ETH | **0.081, 9.7%** | 0.106, 12.5% | 0.810, 94% |
 
 Tail calibration on the test period (share of windows whose peak exceeds the predicted 99% quantile):
 
-| horizon | rough | OU | rigorous bound |
+| horizon | rough | OU with noise | rigorous bound |
 |---|---|---|---|
-| BTC, 7 days | 3.1% | 2.6% | 0.8% |
-| BTC, 90 days | 2.3% | 6.2% | 0.0% |
-| ETH, 90 days | 1.7% | 6.0% | 0.0% |
+| BTC, 7 days | 2.8% | 3.1% | 0.8% |
+| BTC, 90 days | 1.7% | 5.3% | 0.0% |
+| ETH, 90 days | 2.0% | 4.7% | 0.0% |
 
-The rigorous bound (`peakrisk.grid_peak_bound`) combines the paper's bound for any n points, E max ≤ ν n^H μ_n/√2, with the Borell–TIS inequality. It is valid at every level but conservative. The fitted Gaussian models are sharper but under-cover the tails. A practical risk number sits between the two, for example the rough-model quantile with a heavy-tail adjustment.
+The rigorous bound (`peakrisk.grid_peak_bound`) combines the paper's bound for any n points, E max ≤ ν n^H μ_n/√2, with the Borell–TIS inequality. It is valid at every level but conservative. The fitted Gaussian models are sharper but under-cover the tails. A practical risk number sits between the two, for example the rough-model quantile with a heavy-tail adjustment. Windows overlap, so the exceedance rates are descriptive rather than independent trials.
 
-What daily data cannot show: if the rough scaling extends below one day, the paper implies that a daily grid captures only about 47% of the supremum of spot log-volatility over 30 days. In volatility units this means intraday spot peaks about 3.3 to 3.5 times higher than the daily-sampled peak. This is a model statement (first-order asymptotics) that daily data cannot test.
+What daily data cannot show: in the fitted BTC model the expected 30-day peak is 0.72 on a daily grid, 1.02 on an hourly grid and 1.18 on a 5-minute grid, a factor of 1.59 in volatility between daily and 5-minute sampling. The paper's lower bound proves the continuous-time value is at least 1.01. These are statements about the model; they assume the rough scaling holds below one day, which daily data cannot test.
 
 ## 4. Selection bias in correlated backtests
 
@@ -88,14 +89,14 @@ The Deflated Sharpe Ratio of Bailey and López de Prado compares the best Sharpe
 | 1,584 strategies, 2019-10 to 2026-09 | E max z (null) | effective independent trials |
 |---|---|---|
 | independent trials (exact / Bailey–López de Prado formula) | 3.371 / 3.384 | 1,584 |
-| Monte Carlo with the real correlation | **2.706 ± 0.004** | **177** |
-| certified tree bracket | [1.81, 3.41] | |
+| Monte Carlo with the real correlation | **2.710 ± 0.004** | **180** |
+| certified tree bracket | [1.82, 3.38] | uninformative at this level |
 
-Inside each of the 11 strategy families (144 strategies each) the correlation is hierarchical, and the certified upper bound is informative: 2.03 to 2.45 against 2.64 for independent trials, with Monte Carlo at 1.61 to 1.88 (12 to 20 effective trials). Across families the correlation is flat (median 0.21, from −0.48 to 0.99), and no ultrametric can be tight. The tool says so instead of hiding it.
+Inside each of the 11 strategy families (144 strategies each) the correlation is hierarchical, and the certified upper bound is informative: 2.06 to 2.39 against 2.64 for independent trials, with Monte Carlo at 1.61 to 1.88 (12 to 21 effective trials). Across families the correlation is flat (median 0.21, from −0.48 to 0.99): no ultrametric can be tight there, and with negative correlations even the independent-trials value is no longer an upper bound. At the level of the whole sweep the bracket is therefore uninformative, and Monte Carlo is the right tool.
 
 ![In-sample versus out-of-sample Sharpe](reports/05_split_sample.png)
 
-Selection in practice: the best of 1,584 strategies on 2019-10 to 2023-04 had an annualised Sharpe of 1.62 and made 0.39 on 2023-04 to 2026-09. The top 20 averaged 1.44 in sample and 0.37 out of sample, and the rank correlation between the two halves is 0.09. Over the full sample the best strategy (ETH, 26-day momentum, volatility targeted, weekly rebalancing, Sharpe 1.19) has a deflated Sharpe confidence of 0.67 with the correct bar, so it is not significant either.
+Selection in practice: the best of 1,584 strategies on 2019-10 to 2023-04 had an annualised Sharpe of 1.62 and made 0.59 on 2023-04 to 2026-09. The top 20 averaged 1.41 in sample and 0.38 out of sample, and the rank correlation between the two halves is 0.06. Over the full sample the best strategy (BNB, 11-day momentum, volatility targeted, weekly rebalancing, Sharpe 1.20) has a deflated Sharpe confidence of 0.68 with the correct bar, so it is not significant either.
 
 ## Package
 
@@ -105,8 +106,8 @@ Selection in practice: the best of 1,584 strategies on 2019-10 to 2023-04 had an
 | `simulate` | exact fractional Gaussian noise and fBm by circulant embedding |
 | `extremes` | Monte Carlo grid maxima, power-law bias fit, Richardson extrapolation at a given rate |
 | `data` | Binance public kline download and parsing (millisecond and microsecond timestamps) |
-| `estimation` | daily realised variance, weekly deseasonalisation, structure functions, rough (H, ν, noise) and OU fits |
-| `peakrisk` | expected peak of log-volatility (formula and simulation), empirical peaks, rigorous and model quantiles, OU benchmark |
+| `estimation` | daily realised variance, weekly deseasonalisation, structure functions, rough (H, ν, noise) and OU (θ, σ, noise) fits |
+| `peakrisk` | expected peak of log-volatility (simulation and formula), empirical peaks, rigorous and model quantiles, OU benchmark |
 | `selection` | certified tree bounds on E max of correlated z-scores, exact tree recursion, Monte Carlo reference, effective number of trials, deflated Sharpe ratio |
 | `backtest` | time-series momentum and moving-average strategies with costs, volatility targeting and rebalancing; the 1,584-strategy sweep |
 
@@ -115,8 +116,8 @@ import numpy as np
 from roughmax import theory, peakrisk, selection
 
 theory.upper_bound(0.1)                  # 4.935, rigorous bound on E sup B^H, H = 0.1
-theory.captured_fraction(0.1, 365)       # 0.543: share of the peak a daily grid sees over a year
 peakrisk.grid_peak_bound(0.13, 0.39, 30, 0.01)   # rigorous 99% bound on a 30-day log-vol peak
+peakrisk.expected_grid_peak(0.13, 0.39, 30, rng=np.random.default_rng(0))  # (mean, s.e.)
 
 C = np.corrcoef(np.random.default_rng(0).standard_normal((500, 200)), rowvar=False)
 selection.sandwich_bounds(C)             # certified lower and upper bounds on E max z
@@ -126,7 +127,7 @@ selection.sandwich_bounds(C)             # certified lower and upper bounds on E
 
 ```bash
 uv sync --group dev
-uv run pytest                              # 69 offline tests
+uv run pytest                              # 75 offline tests
 cd experiments
 uv run python download_data.py             # about 85 MB of public Binance archives into data/raw/
 uv run python 01_theory.py
@@ -140,11 +141,11 @@ Processed daily series are committed in `data/processed/`, so experiments 03 to 
 
 ## Limitations
 
-- The theoretical results are first-order asymptotics as H → 0, plus non-asymptotic bounds that are wide at moderate H. The simulations, not the formulas, carry the quantitative claims at H = 0.05 to 0.2.
+- The theoretical results are first-order asymptotics as H → 0, plus non-asymptotic bounds that are wide at moderate H. At H = 0.05 to 0.2 the simulations, not the first-order formulas, carry the quantitative claims.
 - Daily realised volatility is an average of spot volatility over the day; statements about intraday spot peaks rely on the rough scaling holding below one day.
 - The peak-risk models are Gaussian; real volatility peaks have heavier tails.
 - The certified selection bracket is tight only for hierarchical correlation structures.
-- The strategy sweep is a research-hygiene example, not a trading recommendation. Costs are a flat 10 basis points per unit of turnover.
+- The strategy sweep is a research-hygiene example, not a trading recommendation. Costs are a flat 10 basis points per unit of turnover; funding, borrowing and liquidation are ignored; leverage is capped at 2x.
 
 ## Reference
 

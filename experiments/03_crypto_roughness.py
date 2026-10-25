@@ -67,8 +67,8 @@ def analyse(symbol: str, rng: np.random.Generator) -> dict:
     noisy = estimation.fit_roughness(x, LAGS, noise=True)
     plain = estimation.fit_roughness(x, LAGS, noise=False)
     halves = {}
-    cut = x_series.index[len(x_series) // 2]
-    for name, part in (("first_half", x_series[:cut]), ("second_half", x_series[cut:])):
+    cut = len(x_series) // 2
+    for name, part in (("first_half", x_series.iloc[:cut]), ("second_half", x_series.iloc[cut:])):
         fit = estimation.fit_roughness(part.to_numpy(), LAGS, noise=True)
         halves[name] = {
             "H": fit.H,

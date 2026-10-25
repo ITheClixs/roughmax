@@ -35,6 +35,7 @@ from common import (
 )
 
 from roughmax import estimation, peakrisk, theory
+from roughmax.simulate import fbm
 
 HORIZONS = (1, 2, 3, 5, 7, 10, 14, 21, 30, 45, 60, 90, 120, 180, 250)
 LAGS = tuple(range(1, 31))
@@ -56,7 +57,11 @@ def predictions(
     }
     for n in HORIZONS:
         out["ou"].append(
-            float(peakrisk.ou_grid_peak_samples(ou.theta, ou.sigma, n, MC_PATHS, rng).mean())
+            float(
+                peakrisk.ou_grid_peak_samples(
+                    ou.theta, ou.sigma, n, MC_PATHS, rng, ou.noise_sd
+                ).mean()
+            )
         )
         mean, se = peakrisk.expected_grid_peak(H, nu, n, s, "mc", MC_PATHS, rng)
         out["rough"].append(mean)
@@ -66,6 +71,35 @@ def predictions(
         )
         out["brownian"].append(peakrisk.expected_grid_peak(0.5, nu, n, s, "mc", MC_PATHS, rng)[0])
         out["asymptotic"].append(peakrisk.expected_grid_peak(H, nu, n, method="asymptotic")[0])
+    return out
+
+
+def intraday_resolution(H: float, nu: float, rng: np.random.Generator) -> dict:
+    """Expected 30-day peak of latent log-volatility sampled daily, hourly and every 5 minutes.
+
+    Exact simulation of the fitted rough model at finer grids, together with the paper's
+    rigorous bracket for the continuous-time supremum. This is a statement about the model:
+    it assumes the rough scaling holds below one day, which daily data cannot test.
+    """
+    horizon, out = 30, {}
+    for label, per_day in (("daily", 1), ("hourly", 24), ("five_minute", 288)):
+        steps = horizon * per_day
+        paths = 4000 if per_day < 288 else 1500
+        peaks = []
+        for _ in range(paths // 500):
+            x = nu * fbm(steps, H, 500, rng, T=float(horizon))
+            peaks.append(x[:, 1:].max(axis=1))
+        peaks = np.concatenate(peaks)
+        out[label] = {
+            "mean": float(peaks.mean()),
+            "se": float(peaks.std(ddof=1) / math.sqrt(peaks.size)),
+        }
+    scale = nu * horizon**H
+    out["sup_lower_bound"] = scale * theory.lower_bound(H)
+    out["sup_upper_bound"] = scale * theory.upper_bound(H)
+    out["five_minute_over_daily_vol_multiplier"] = math.exp(
+        out["five_minute"]["mean"] - out["daily"]["mean"]
+    )
     return out
 
 
@@ -106,7 +140,7 @@ def coverage(
     for n in COVERAGE_HORIZONS:
         peaks = peakrisk.empirical_peaks(x_test, n)
         rough_sim = peakrisk.grid_peak_samples(H, nu, n, MC_PATHS, rng, s)
-        ou_sim = peakrisk.ou_grid_peak_samples(ou.theta, ou.sigma, n, MC_PATHS, rng)
+        ou_sim = peakrisk.ou_grid_peak_samples(ou.theta, ou.sigma, n, MC_PATHS, rng, ou.noise_sd)
         for alpha in ALPHAS:
             levels = {
                 "bound": peakrisk.grid_peak_bound(H, nu, n, alpha, noise_sd=s),
@@ -142,7 +176,7 @@ def analyse(symbol: str, rng: np.random.Generator) -> dict:
     ou_tr = estimation.fit_ou(train, LAGS)
     oos_pred = predictions(fit_tr.H, fit_tr.nu, fit_tr.noise_sd, ou_tr, rng)
     oos_emp = empirical(test)
-    gap = peakrisk.continuous_peak_gap(fit.H, fit.nu, 30)
+    gap = intraday_resolution(fit.H, fit.nu, rng)
     result = {
         "symbol": symbol,
         "fit": {"H": fit.H, "nu": fit.nu, "noise_sd": fit.noise_sd},
@@ -171,13 +205,8 @@ def analyse(symbol: str, rng: np.random.Generator) -> dict:
             },
             "coverage": coverage(test, fit_tr.H, fit_tr.nu, fit_tr.noise_sd, ou_tr, rng),
         },
-        "intraday_gap_30d": {
-            **gap,
-            "vol_ratio_sup_asymptotic_over_daily_grid": math.exp(
-                gap["sup_asymptotic"] - gap["grid_asymptotic"]
-            ),
-            "captured_fraction_daily_grid": theory.captured_fraction(fit.H, 30),
-        },
+        "ou_fit_noise_sd": ou_full.noise_sd,
+        "intraday_resolution_30d": gap,
     }
     log.info("%s out of sample: %s", symbol, result["out_of_sample"]["errors"])
     return result
