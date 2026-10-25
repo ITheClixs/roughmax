@@ -48,10 +48,15 @@ def test_quantile_bound_dominates_simulation():
     rng = np.random.default_rng(4)
     H, n = 0.1, 64
     samples = peakrisk.grid_peak_samples(H, 1.0, n, 20000, rng)
-    assert peakrisk.grid_peak_bound(H, 1.0, n, 0.05) >= np.quantile(samples, 0.95)
-    assert peakrisk.grid_peak_bound(H, 1.0, n, 0.05) == pytest.approx(
-        theory.peak_quantile_bound(H, 0.05, 1.0, float(n))
-    )
+    bound = peakrisk.grid_peak_bound(H, 1.0, n, 0.05)
+    assert bound >= np.quantile(samples, 0.95)
+    assert bound <= theory.peak_quantile_bound(H, 0.05, 1.0, float(n))
+
+
+def test_grid_bound_uses_any_n_point_bound_for_short_horizons():
+    H, n = 0.13, 7
+    expected = n**H * (theory.mu_n(n) / np.sqrt(2) + np.sqrt(2 * np.log(20)))
+    assert peakrisk.grid_peak_bound(H, 1.0, n, 0.05) == pytest.approx(expected)
 
 
 def test_continuous_gap_orders_grid_below_sup():
