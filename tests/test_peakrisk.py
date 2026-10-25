@@ -21,7 +21,9 @@ def test_scaling_in_nu():
 def test_noise_raises_the_expected_peak():
     rng = np.random.default_rng(2)
     clean, _ = peakrisk.expected_grid_peak(0.1, 0.3, 20, method="mc", size=20000, rng=rng)
-    noisy, _ = peakrisk.expected_grid_peak(0.1, 0.3, 20, noise_sd=0.2, method="mc", size=20000, rng=rng)
+    noisy, _ = peakrisk.expected_grid_peak(
+        0.1, 0.3, 20, noise_sd=0.2, method="mc", size=20000, rng=rng
+    )
     assert noisy > clean + 0.05
 
 

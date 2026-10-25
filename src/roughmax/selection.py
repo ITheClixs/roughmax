@@ -118,7 +118,11 @@ def sandwich_bounds(C: np.ndarray, subset_radii: list[float] | None = None) -> d
             continue
         value = tree_expected_max(linkage_tree(C[np.ix_(idx, idx)], "single"))
         if value > lower:
-            lower, method, subset_size = value, f"single linkage on {radius:.3f}-separated subset", idx.size
+            lower, method, subset_size = (
+                value,
+                f"single linkage on {radius:.3f}-separated subset",
+                idx.size,
+            )
     return {"lower": lower, "upper": upper, "lower_method": method, "subset_size": int(subset_size)}
 
 

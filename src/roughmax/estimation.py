@@ -71,7 +71,9 @@ def structure_function(x: np.ndarray, lags: Iterable[int], q: float = 2.0) -> np
     return np.asarray(values)
 
 
-def fit_roughness(x: np.ndarray, lags: Iterable[int] = range(1, 31), noise: bool = True) -> RoughnessFit:
+def fit_roughness(
+    x: np.ndarray, lags: Iterable[int] = range(1, 31), noise: bool = True
+) -> RoughnessFit:
     """Fit H, nu (and the noise level) from the second-order structure function.
 
     Without noise this is the log-log regression of Gatheral, Jaisson and Rosenbaum; with
