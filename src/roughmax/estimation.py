@@ -110,3 +110,37 @@ def fit_roughness(
     )
     h, log_nu, log_s = sol.x
     return RoughnessFit(float(h), float(np.exp(log_nu)), float(np.exp(log_s)), lags, tuple(m))
+
+
+@dataclass(frozen=True)
+class OUFit:
+    """Stationary Ornstein-Uhlenbeck fit m(2, D) = 2 sigma^2 (1 - exp(-theta D))."""
+
+    theta: float
+    sigma: float
+    lags: tuple[int, ...]
+    m: tuple[float, ...]
+
+    def model(self, lags: Iterable[float]) -> np.ndarray:
+        d = np.asarray(list(lags), dtype=float)
+        return 2.0 * self.sigma**2 * -np.expm1(-self.theta * d)
+
+
+def fit_ou(x: np.ndarray, lags: Iterable[int] = range(1, 31)) -> OUFit:
+    """Fit a mean-reverting (H = 1/2) Ornstein-Uhlenbeck model to the structure function.
+
+    This is the classical non-rough benchmark for log-volatility, fitted on the same lags
+    and the same statistic as fit_roughness.
+    """
+    lags = tuple(int(v) for v in lags)
+    m = structure_function(x, lags)
+    log_d, log_m = np.asarray(lags, dtype=float), np.log(m)
+
+    def resid(p: np.ndarray) -> np.ndarray:
+        theta, sigma = np.exp(p)
+        return np.log(2.0 * sigma**2 * -np.expm1(-theta * log_d)) - log_m
+
+    start = np.log([0.05, np.sqrt(m[-1] / 2.0)])
+    sol = optimize.least_squares(resid, start, x_scale="jac")
+    theta, sigma = np.exp(sol.x)
+    return OUFit(float(theta), float(sigma), lags, tuple(m))

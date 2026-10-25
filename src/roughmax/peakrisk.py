@@ -41,6 +41,32 @@ def grid_peak_samples(
     return out
 
 
+def ou_grid_peak_samples(
+    theta: float,
+    sigma: float,
+    n: int,
+    size: int,
+    rng: np.random.Generator,
+    noise_sd: float = 0.0,
+) -> np.ndarray:
+    """Peak excursions over n steps of a stationary Ornstein-Uhlenbeck process (H = 1/2).
+
+    The process is sampled exactly as an AR(1) with coefficient exp(-theta), started from
+    its stationary law N(0, sigma^2); this is the mean-reverting non-rough benchmark.
+    """
+    phi = math.exp(-theta)
+    innovation = sigma * math.sqrt(1.0 - phi * phi)
+    x0 = sigma * rng.standard_normal(size)
+    current = x0.copy()
+    peak = np.full(size, -np.inf)
+    obs0 = x0 + noise_sd * rng.standard_normal(size) if noise_sd > 0.0 else x0
+    for _ in range(n):
+        current = phi * current + innovation * rng.standard_normal(size)
+        obs = current + noise_sd * rng.standard_normal(size) if noise_sd > 0.0 else current
+        np.maximum(peak, obs - obs0, out=peak)
+    return peak
+
+
 def expected_grid_peak(
     H: float,
     nu: float,

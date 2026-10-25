@@ -77,3 +77,17 @@ def test_remove_weekly_seasonality_keeps_nans():
     x.iloc[3] = np.nan
     out = estimation.remove_weekly_seasonality(x)
     assert np.isnan(out.iloc[3]) and out.notna().sum() == 13
+
+
+def test_fit_ou_recovers_parameters():
+    rng = np.random.default_rng(8)
+    theta, sigma, n = 0.05, 0.6, 60000
+    phi = np.exp(-theta)
+    x = np.empty(n)
+    x[0] = sigma * rng.standard_normal()
+    eps = sigma * np.sqrt(1 - phi**2) * rng.standard_normal(n)
+    for t in range(1, n):
+        x[t] = phi * x[t - 1] + eps[t]
+    fit = estimation.fit_ou(x, lags=range(1, 31))
+    assert fit.theta == pytest.approx(theta, rel=0.25)
+    assert fit.sigma == pytest.approx(sigma, rel=0.15)

@@ -73,3 +73,19 @@ def test_empirical_peaks_values():
     x = np.array([0.0, 1.0, -1.0, 2.0, 5.0, np.nan])
     peaks = peakrisk.empirical_peaks(x, 2)
     np.testing.assert_allclose(peaks, [1.0, 1.0, 6.0])
+
+
+def test_ou_peaks_match_brownian_for_tiny_mean_reversion():
+    rng = np.random.default_rng(6)
+    n, theta = 30, 1e-6
+    sigma = 1.0 / np.sqrt(2 * theta)  # one-step increment variance about 1
+    ou = peakrisk.ou_grid_peak_samples(theta, sigma, n, 20000, rng).mean()
+    bm, se = peakrisk.expected_grid_peak(0.5, 1.0, n, method="mc", size=20000, rng=rng)
+    assert ou == pytest.approx(bm, abs=4 * se + 0.02)
+
+
+def test_ou_peaks_saturate():
+    rng = np.random.default_rng(7)
+    short = peakrisk.ou_grid_peak_samples(0.2, 0.5, 20, 5000, rng).mean()
+    long = peakrisk.ou_grid_peak_samples(0.2, 0.5, 400, 5000, rng).mean()
+    assert long < 2.0 < 4 * short
