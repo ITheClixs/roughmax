@@ -1,0 +1,36 @@
+[project]
+name = "roughmax"
+version = "0.1.0"
+description = "Extremes of rough Gaussian processes for quantitative research: peak-volatility risk, path Monte Carlo bias, and selection bias in correlated backtests."
+readme = "README.md"
+license = { text = "MIT" }
+authors = [{ name = "Mehmet Demir Güven", email = "dgueven@student.ethz.ch" }]
+requires-python = ">=3.11"
+dependencies = [
+    "numpy>=1.26",
+    "scipy>=1.11",
+    "pandas>=2.1",
+    "matplotlib>=3.8",
+]
+
+[dependency-groups]
+dev = ["pytest>=8.0", "ruff>=0.5"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/roughmax"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "NPY"]
+ignore = ["E741"]
