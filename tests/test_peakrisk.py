@@ -58,3 +58,12 @@ def test_continuous_gap_orders_grid_below_sup():
     gap = peakrisk.continuous_peak_gap(0.1, 0.3, 30)
     assert gap["grid_asymptotic"] < gap["sup_upper"]
     assert gap["sup_lower"] < gap["sup_upper"]
+
+
+def test_quantile_bound_with_noise_dominates_noisy_simulation():
+    rng = np.random.default_rng(5)
+    H, nu, n, s = 0.1, 0.3, 30, 0.15
+    samples = peakrisk.grid_peak_samples(H, nu, n, 20000, rng, noise_sd=s)
+    bound = peakrisk.grid_peak_bound(H, nu, n, 0.05, noise_sd=s)
+    assert bound >= np.quantile(samples, 0.95)
+    assert bound > peakrisk.grid_peak_bound(H, nu, n, 0.05)

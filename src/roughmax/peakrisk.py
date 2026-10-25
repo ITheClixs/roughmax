@@ -66,13 +66,19 @@ def expected_grid_peak(
     raise ValueError(f"unknown method {method!r}")
 
 
-def grid_peak_bound(H: float, nu: float, n: int, alpha: float) -> float:
-    """Upper bound on the (1-alpha)-quantile of the noise-free peak over n steps.
+def grid_peak_bound(H: float, nu: float, n: int, alpha: float, noise_sd: float = 0.0) -> float:
+    """Upper bound on the (1-alpha)-quantile of the peak over n steps.
 
-    The grid maximum is at most the supremum over [0, n], whose quantile is bounded by the
-    paper's upper bound on the mean plus the Borell-TIS deviation term.
+    Without noise, the grid maximum is at most the supremum over [0, n], whose quantile is
+    bounded by the paper's upper bound on the mean plus the Borell-TIS deviation term. With
+    i.i.d. N(0, s^2) noise the peak max_i (nu B_i + e_i - e_0) is still Gaussian, its mean is
+    at most nu n^H U(H) + s mu_n, and its largest variance is at most nu^2 n^{2H} + 2 s^2.
     """
-    return theory.peak_quantile_bound(H, alpha, nu=nu, T=float(n))
+    if noise_sd == 0.0:
+        return theory.peak_quantile_bound(H, alpha, nu=nu, T=float(n))
+    mean_bound = nu * n**H * theory.upper_bound(H) + noise_sd * theory.mu_n(n)
+    sigma = math.sqrt(nu**2 * n ** (2.0 * H) + 2.0 * noise_sd**2)
+    return mean_bound + sigma * math.sqrt(2.0 * math.log(1.0 / alpha))
 
 
 def empirical_grid_peak(x: np.ndarray, n: int, step: int = 1) -> dict[str, float]:
