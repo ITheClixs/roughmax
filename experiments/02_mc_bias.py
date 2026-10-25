@@ -61,6 +61,9 @@ def run_one(H: float, rng: np.random.Generator) -> dict:
             lo - 3 * fit["A_se"] <= fit["A"] <= up + 3 * fit["A_se"]
         ),
         "fraction_of_lower_bound_at_finest_grid": means[-1] / lo,
+        "log2_points_to_reach_lower_bound": (
+            math.log2(fit["c"] / (fit["A"] - lo)) / fit["r"] if fit["A"] > lo else None
+        ),
     }
 
 
@@ -70,7 +73,7 @@ def figure(results: list[dict]) -> None:
         n = np.array(res["n"], dtype=float)
         ax.axhspan(res["lower_bound"], res["upper_bound"], color=GREY, alpha=0.18, lw=0)
         ax.text(
-            2**6.2,
+            6.3,
             res["upper_bound"],
             r"proved range of $\mathbb{E}\sup$",
             va="top",
@@ -105,7 +108,7 @@ def figure(results: list[dict]) -> None:
             lw=1.0,
             label=r"first-order $\Lambda(H\log n)/\sqrt{H}$",
         )
-        ax.set_title(f"H = {res['H']}", fontsize=9)
+        ax.set_title(f"H = {res['H']}: fitted bias rate r = {fit['r']:.3f}", fontsize=9)
         ax.set_xlabel(r"$\log_2 n$")
         ax.set_xlim(5, 40)
     axes[0].set_ylabel(r"$\mathbb{E}\max_{i\leq n} B^H_{i/n}$")
