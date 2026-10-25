@@ -115,6 +115,9 @@ def tree_expected_max(Z: np.ndarray, floor: float = 0.0) -> float:
     Z = np.asarray(Z, dtype=float)
     n = Z.shape[0] + 1
     heights = np.concatenate([np.zeros(n), Z[:, 2]])
+    for k, (a, b) in enumerate(Z[:, :2].astype(int)):
+        if heights[a] > heights[n + k] + 1e-12 or heights[b] > heights[n + k] + 1e-12:
+            raise ValueError("dendrogram heights must be monotone (child <= parent)")
     eff = np.maximum(heights, floor)
     root = 2 * n - 2
     if n == 1 or eff[root] <= floor:
@@ -162,6 +165,14 @@ def sandwich_bounds(
     paper: dropping points can only lower E max, but can raise the minorant).
     """
     C = np.asarray(C, dtype=float)
+    if C.shape[0] == 1:
+        return {
+            "lower": 0.0,
+            "upper": 0.0,
+            "lower_method": "trivial",
+            "upper_method": "trivial",
+            "subset_size": 1,
+        }
     d = corr_distance(C)
     upper, upper_method = math.inf, ""
     lower, lower_method, subset_size = -math.inf, "", C.shape[0]
@@ -218,6 +229,8 @@ def iid_expected_max(N: int) -> float:
 
 def bl_expected_max(N: float) -> float:
     """Approximation of E max of N i.i.d. normals used in the Deflated Sharpe Ratio."""
+    if N < 2:
+        raise ValueError("the approximation needs N >= 2")
     q1 = stats.norm.ppf(1.0 - 1.0 / N)
     q2 = stats.norm.ppf(1.0 - 1.0 / (N * math.e))
     return (1.0 - EULER_GAMMA) * q1 + EULER_GAMMA * q2
@@ -227,7 +240,9 @@ def effective_trials(emax: float) -> float:
     """Number N of independent trials with the same expected maximum, mu_N = emax."""
     if emax <= 0.0:
         return 1.0
-    root = optimize.brentq(lambda s: theory.mu_n(math.exp(s)) - emax, 1e-9, 60.0, xtol=1e-12)
+    if emax >= theory.mu_n(math.exp(700.0)):
+        raise ValueError("expected maximum too large to invert")
+    root = optimize.brentq(lambda s: theory.mu_n(math.exp(s)) - emax, 1e-9, 700.0, xtol=1e-12)
     return math.exp(root)
 
 
@@ -237,5 +252,8 @@ def deflated_sharpe(sr: float, T: int, skew: float, kurt: float, sr0: float) -> 
     With sr0 = sd(SR) * E max Z this is the Deflated Sharpe Ratio of Bailey and Lopez de
     Prado (2014); kurt is the raw (non-excess) kurtosis of the returns.
     """
-    denom = math.sqrt(1.0 - skew * sr + (kurt - 1.0) / 4.0 * sr**2)
+    var = 1.0 - skew * sr + (kurt - 1.0) / 4.0 * sr**2
+    if var <= 0.0:
+        raise ValueError("non-positive variance of the Sharpe estimator; check skew and kurt")
+    denom = math.sqrt(var)
     return float(stats.norm.cdf((sr - sr0) * math.sqrt(T - 1) / denom))

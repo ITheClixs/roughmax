@@ -13,7 +13,8 @@ TRADING_DAYS = 365  # crypto trades every day
 TSMOM_LOOKBACKS = tuple(int(v) for v in np.unique(np.round(np.geomspace(5, 250, 20))))
 MA_PAIRS = tuple((f, s) for f in (5, 10, 20, 40) for s in (50, 100, 150, 200))
 VOL_WINDOW = 60
-MAX_LEVERAGE = 3.0
+MAX_LEVERAGE = 2.0
+WARMUP = max(max(TSMOM_LOOKBACKS), max(slow for _, slow in MA_PAIRS), VOL_WINDOW)
 
 
 def tsmom_positions(prices: pd.Series, lookback: int) -> pd.Series:
@@ -40,7 +41,7 @@ def strategy_returns(
     """Net daily returns of trading `positions` on `prices`.
 
     vol_target (annualised) scales positions by vol_target / trailing 60-day volatility,
-    capped at 3x leverage. With rebalance = k the position is only updated every k days.
+    capped at 2x leverage. With rebalance = k the position is only updated every k days.
     """
     if rebalance < 1:
         raise ValueError("rebalance must be at least 1")
@@ -69,10 +70,11 @@ def build_sweep(prices: pd.DataFrame, cost_bps: float = 10.0) -> pd.DataFrame:
 
     Universes: each asset alone and an equal-weight average across assets ("EW"). Signals:
     time-series momentum over 20 log-spaced lookbacks and 16 moving-average crossovers.
-    Variants: with or without 40% volatility targeting, daily or weekly rebalancing.
-    Rows with a missing value in any column (warm-up periods) are dropped.
+    Variants: with or without 40% volatility targeting, daily or weekly (7-day) rebalancing.
+    Each asset's first WARMUP days after its listing are discarded, the equal-weight basket
+    is only defined when every asset trades, and rows with any missing value are dropped.
     """
-    variants = [(vt, rb) for vt in (None, 0.4) for rb in (1, 5)]
+    variants = [(vt, rb) for vt in (None, 0.4) for rb in (1, 7)]
     columns: dict[str, pd.Series] = {}
     per_asset: dict[str, dict[str, pd.Series]] = {}
     for asset in prices.columns:
@@ -81,10 +83,9 @@ def build_sweep(prices: pd.DataFrame, cost_bps: float = 10.0) -> pd.DataFrame:
             for vt, rb in variants:
                 key = f"{name}|vt{0 if vt is None else 1}|rb{rb}"
                 ret = strategy_returns(series, pos, vol_target=vt, rebalance=rb, cost_bps=cost_bps)
+                ret.iloc[:WARMUP] = np.nan
                 columns[f"{asset}|{key}"] = ret
                 per_asset.setdefault(key, {})[asset] = ret
     for key, by_asset in per_asset.items():
-        columns[f"EW|{key}"] = pd.DataFrame(by_asset).mean(axis=1)
-    sweep = pd.DataFrame(columns)
-    warmup = max(max(TSMOM_LOOKBACKS), max(s for _, s in MA_PAIRS), VOL_WINDOW)
-    return sweep.iloc[warmup:].dropna()
+        columns[f"EW|{key}"] = pd.DataFrame(by_asset).mean(axis=1, skipna=False)
+    return pd.DataFrame(columns).dropna()

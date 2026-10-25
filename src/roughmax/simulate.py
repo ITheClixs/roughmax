@@ -34,7 +34,9 @@ def _sqrt_eigenvalues(n: int, H: float) -> np.ndarray:
     eig = np.fft.fft(row).real
     if eig.min() < -1e-10 * eig.max():
         raise RuntimeError("circulant embedding is not positive semi-definite")
-    return np.sqrt(np.clip(eig, 0.0, None) / row.size)
+    out = np.sqrt(np.clip(eig, 0.0, None) / row.size)
+    out.flags.writeable = False  # the array is cached and shared between calls
+    return out
 
 
 def fgn(n: int, H: float, size: int, rng: np.random.Generator) -> np.ndarray:

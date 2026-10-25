@@ -91,3 +91,27 @@ def test_fit_ou_recovers_parameters():
     fit = estimation.fit_ou(x, lags=range(1, 31))
     assert fit.theta == pytest.approx(theta, rel=0.25)
     assert fit.sigma == pytest.approx(sigma, rel=0.15)
+
+
+@pytest.mark.parametrize("x", [0.1 * np.arange(300.0), np.ones(300)])
+def test_fit_roughness_degenerate_inputs(x):
+    if np.ptp(x) == 0:
+        with pytest.raises(ValueError, match="constant"):
+            estimation.fit_roughness(x)
+    else:
+        fit = estimation.fit_roughness(x)
+        assert 0 < fit.H < 1
+
+
+def test_fit_ou_with_noise_recovers_noise():
+    rng = np.random.default_rng(9)
+    theta, sigma, n, s = 0.1, 0.5, 60000, 0.15
+    phi = np.exp(-theta)
+    x = np.empty(n)
+    x[0] = sigma * rng.standard_normal()
+    eps = sigma * np.sqrt(1 - phi**2) * rng.standard_normal(n)
+    for t in range(1, n):
+        x[t] = phi * x[t - 1] + eps[t]
+    fit = estimation.fit_ou(x + s * rng.standard_normal(n), lags=range(1, 31), noise=True)
+    assert fit.noise_sd == pytest.approx(s, abs=0.05)
+    assert fit.theta == pytest.approx(theta, rel=0.3)

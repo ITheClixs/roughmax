@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import io
 import logging
+import re
 import urllib.error
 import urllib.request
 import zipfile
@@ -38,8 +39,14 @@ COLUMNS = [
 _MICROSECOND_THRESHOLD = 10**14  # epoch values above this are microseconds
 
 
+_SYMBOL = re.compile(r"^[A-Z0-9]{2,20}$")
+_INTERVALS = {"1s", "1m", "3m", "5m", "15m", "30m", "1h", "2h", "4h", "6h", "8h", "12h", "1d"}
+
+
 def kline_url(symbol: str, interval: str, year: int, month: int) -> str:
     """URL of the monthly kline archive for one symbol and bar interval."""
+    if not _SYMBOL.match(symbol) or interval not in _INTERVALS:
+        raise ValueError(f"invalid symbol or interval: {symbol!r} {interval!r}")
     name = f"{symbol}-{interval}-{year:04d}-{month:02d}.zip"
     return f"{BASE_URL}/{symbol}/{interval}/{name}"
 

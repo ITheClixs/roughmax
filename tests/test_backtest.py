@@ -43,3 +43,13 @@ def test_build_sweep_shape_and_names():
     assert sweep.shape[1] == 4 * 36 * 4
     assert any(c.startswith("EW|") for c in sweep.columns)
     assert sweep.notna().all().all()
+
+
+def test_late_listing_asset_has_no_fake_warmup_zeros():
+    prices = _prices(n=900)
+    prices.loc[prices.index[:600], "B"] = np.nan
+    sweep = backtest.build_sweep(prices)
+    first_valid_b = prices["B"].first_valid_index()
+    assert sweep.index[0] > first_valid_b + pd.Timedelta(days=200)
+    col = sweep["B|tsmom250|vt0|rb1"]
+    assert (col.iloc[:5] != 0).any()

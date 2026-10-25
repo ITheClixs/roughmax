@@ -72,21 +72,23 @@ def expected_grid_peak(
     nu: float,
     n: int,
     noise_sd: float = 0.0,
-    method: str = "asymptotic",
+    method: str = "mc",
     size: int = 4000,
     rng: np.random.Generator | None = None,
 ) -> tuple[float, float]:
     """Expected peak excursion over n steps; returns (value, standard error).
 
-    method="asymptotic" uses the first-order formula of the paper (noise-free only);
-    method="mc" simulates exactly and returns the Monte Carlo standard error.
+    method="mc" (default) simulates exactly and returns the Monte Carlo standard error;
+    method="asymptotic" uses the paper's first-order formula (noise-free only), which is
+    exact only as H -> 0 and overstates the grid maximum at H around 0.1 by tens of percent.
     """
     if method == "asymptotic":
         if noise_sd > 0.0:
             raise ValueError("the asymptotic formula has no noise term; use method='mc'")
         return nu * n**H * theory.grid_max_asymptotic(H, n), 0.0
     if method == "mc":
-        rng = np.random.default_rng() if rng is None else rng
+        if rng is None:
+            raise ValueError("pass a numpy Generator for reproducible Monte Carlo")
         samples = grid_peak_samples(H, nu, n, size, rng, noise_sd)
         return float(samples.mean()), float(samples.std(ddof=1) / math.sqrt(size))
     raise ValueError(f"unknown method {method!r}")
@@ -126,7 +128,7 @@ def empirical_grid_peak(x: np.ndarray, n: int, step: int = 1) -> dict[str, float
     """Summary of the empirical peak excursions over n steps (see empirical_peaks).
 
     Windows overlap when step < n, so the reported standard error uses the effective number
-    of non-overlapping windows.
+    of non-overlapping windows; with long memory this is still optimistic.
     """
     peaks = empirical_peaks(x, n, step)
     if peaks.size < 2:

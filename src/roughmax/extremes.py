@@ -48,6 +48,8 @@ def richardson(n1: float, v1: float, n2: float, v2: float, rate: float) -> float
 def fit_power_bias(ns: np.ndarray, means: np.ndarray, ses: np.ndarray) -> dict[str, float]:
     """Weighted least-squares fit of v(n) = A - c n^{-r}; returns A, c, r and their s.e."""
     ns, means, ses = (np.asarray(a, dtype=float) for a in (ns, means, ses))
+    if np.any(ses <= 0) or ns.size < 3:
+        raise ValueError("need at least three points with positive standard errors")
     log_n = np.log(ns)
 
     def model(x: np.ndarray, A: float, c: float, r: float) -> np.ndarray:

@@ -36,8 +36,9 @@ class RoughnessFit:
 def daily_realized_variance(bars: pd.DataFrame, min_frac: float = 0.9) -> pd.Series:
     """Sum of squared intraday log returns per UTC day.
 
-    Days with fewer than min_frac of the expected number of bars are dropped, so that
-    missing data never silently lowers the realised variance.
+    Returns are taken between consecutive available bars, so a return across a gap spans
+    the missing interval and the realised variance stays unbiased; days with fewer than
+    min_frac of the expected number of bars are dropped because their estimate is noisier.
     """
     if bars.empty:
         raise ValueError("no bars given")
@@ -83,6 +84,13 @@ def structure_function(x: np.ndarray, lags: Iterable[int], q: float = 2.0) -> np
     return np.asarray(values)
 
 
+def _positive_structure(x: np.ndarray, lags: tuple[int, ...]) -> np.ndarray:
+    m = structure_function(x, lags)
+    if np.any(m <= 0):
+        raise ValueError("series is constant at some lag; roughness is not identified")
+    return m
+
+
 def fit_roughness(
     x: np.ndarray, lags: Iterable[int] = range(1, 31), noise: bool = True
 ) -> RoughnessFit:
@@ -92,10 +100,10 @@ def fit_roughness(
     noise the model 2 s^2 + nu^2 D^{2H} is fitted by least squares on the log scale.
     """
     lags = tuple(int(v) for v in lags)
-    m = structure_function(x, lags)
+    m = _positive_structure(x, lags)
     log_d, log_m = np.log(lags), np.log(m)
     slope, intercept = np.polyfit(log_d, log_m, 1)
-    H0, nu0 = max(slope / 2.0, 1e-3), float(np.exp(intercept / 2.0))
+    H0, nu0 = float(np.clip(slope / 2.0, 1e-3, 0.998)), float(np.exp(intercept / 2.0))
     if not noise:
         return RoughnessFit(float(H0), nu0, 0.0, lags, tuple(m))
 
@@ -114,33 +122,41 @@ def fit_roughness(
 
 @dataclass(frozen=True)
 class OUFit:
-    """Stationary Ornstein-Uhlenbeck fit m(2, D) = 2 sigma^2 (1 - exp(-theta D))."""
+    """Stationary Ornstein-Uhlenbeck fit m(2, D) = 2 s^2 + 2 sigma^2 (1 - exp(-theta D))."""
 
     theta: float
     sigma: float
+    noise_sd: float
     lags: tuple[int, ...]
     m: tuple[float, ...]
 
     def model(self, lags: Iterable[float]) -> np.ndarray:
         d = np.asarray(list(lags), dtype=float)
-        return 2.0 * self.sigma**2 * -np.expm1(-self.theta * d)
+        return 2.0 * self.noise_sd**2 + 2.0 * self.sigma**2 * -np.expm1(-self.theta * d)
 
 
-def fit_ou(x: np.ndarray, lags: Iterable[int] = range(1, 31)) -> OUFit:
+def fit_ou(x: np.ndarray, lags: Iterable[int] = range(1, 31), noise: bool = True) -> OUFit:
     """Fit a mean-reverting (H = 1/2) Ornstein-Uhlenbeck model to the structure function.
 
-    This is the classical non-rough benchmark for log-volatility, fitted on the same lags
-    and the same statistic as fit_roughness.
+    This is the classical non-rough benchmark for log-volatility, fitted on the same lags,
+    the same statistic and with the same optional noise term as fit_roughness.
     """
     lags = tuple(int(v) for v in lags)
-    m = structure_function(x, lags)
-    log_d, log_m = np.asarray(lags, dtype=float), np.log(m)
+    m = _positive_structure(x, lags)
+    d_lags, log_m = np.asarray(lags, dtype=float), np.log(m)
 
     def resid(p: np.ndarray) -> np.ndarray:
-        theta, sigma = np.exp(p)
-        return np.log(2.0 * sigma**2 * -np.expm1(-theta * log_d)) - log_m
+        theta, sigma = np.exp(p[:2])
+        s2 = np.exp(2.0 * p[2]) if noise else 0.0
+        return np.log(2.0 * s2 + 2.0 * sigma**2 * -np.expm1(-theta * d_lags)) - log_m
 
-    start = np.log([0.05, np.sqrt(m[-1] / 2.0)])
-    sol = optimize.least_squares(resid, start, x_scale="jac")
-    theta, sigma = np.exp(sol.x)
-    return OUFit(float(theta), float(sigma), lags, tuple(m))
+    start = [np.log(0.05), np.log(np.sqrt(m[-1] / 2.0))]
+    lower, upper = [-np.inf, -np.inf], [np.inf, np.inf]
+    if noise:
+        start.append(np.log(0.3 * np.sqrt(m[0] / 2.0) + 1e-12))
+        lower.append(-20.0)
+        upper.append(np.inf)
+    sol = optimize.least_squares(resid, np.array(start), bounds=(lower, upper), x_scale="jac")
+    theta, sigma = np.exp(sol.x[:2])
+    noise_sd = float(np.exp(sol.x[2])) if noise else 0.0
+    return OUFit(float(theta), float(sigma), noise_sd, lags, tuple(m))

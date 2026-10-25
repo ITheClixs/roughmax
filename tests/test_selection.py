@@ -113,3 +113,24 @@ def test_multi_topology_sandwich_is_tighter_and_valid():
     mc, se = selection.mc_expected_max(C, 30000, np.random.default_rng(13))
     assert b["upper"] <= old_upper + 1e-9 and b["lower"] >= old_lower - 1e-9
     assert b["lower"] <= mc + 3 * se and mc <= b["upper"] + 3 * se
+
+
+def test_selection_edge_cases():
+    assert selection.sandwich_bounds(np.eye(1)) == {
+        "lower": 0.0,
+        "upper": 0.0,
+        "lower_method": "trivial",
+        "upper_method": "trivial",
+        "subset_size": 1,
+    }
+    with pytest.raises(ValueError):
+        selection.bl_expected_max(1)
+    with pytest.raises(ValueError):
+        selection.deflated_sharpe(3.0, 100, skew=5.0, kurt=3.0, sr0=0.0)
+    assert selection.effective_trials(12.0) > 1e30
+
+
+def test_tree_expected_max_rejects_non_monotone_heights():
+    Z = np.array([[0, 1, 1.0, 2], [2, 3, 0.5, 3]])
+    with pytest.raises(ValueError, match="monotone"):
+        selection.tree_expected_max(Z)
