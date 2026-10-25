@@ -57,3 +57,23 @@ def test_fit_roughness_without_noise_is_log_linear():
     fit = estimation.fit_roughness(x, lags=range(1, 31), noise=False)
     assert fit.H == pytest.approx(0.3, abs=0.03)
     assert fit.noise_sd == 0.0
+
+
+def test_remove_weekly_seasonality_uses_reference_means():
+    idx = pd.date_range("2024-01-01", periods=28, freq="D", tz="UTC")
+    pattern = np.array([0.0, 0.0, 0.0, 0.0, 0.0, -1.0, -1.0])
+    x = pd.Series(np.tile(pattern, 4), index=idx)
+    clean = estimation.remove_weekly_seasonality(x)
+    assert np.allclose(clean, 0.0)
+    ref = x.iloc[:14]
+    shifted = x + 2.0
+    out = estimation.remove_weekly_seasonality(shifted, reference=ref)
+    assert np.allclose(out, 2.0)
+
+
+def test_remove_weekly_seasonality_keeps_nans():
+    idx = pd.date_range("2024-01-01", periods=14, freq="D", tz="UTC")
+    x = pd.Series(np.arange(14.0), index=idx)
+    x.iloc[3] = np.nan
+    out = estimation.remove_weekly_seasonality(x)
+    assert np.isnan(out.iloc[3]) and out.notna().sum() == 13

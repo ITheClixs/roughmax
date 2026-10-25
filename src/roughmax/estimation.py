@@ -56,6 +56,18 @@ def daily_realized_variance(bars: pd.DataFrame, min_frac: float = 0.9) -> pd.Ser
     return out
 
 
+def remove_weekly_seasonality(x: pd.Series, reference: pd.Series | None = None) -> pd.Series:
+    """Subtract the day-of-week mean of a daily series.
+
+    Crypto volatility has a weekly cycle (quiet weekends), which puts dips into the
+    structure function at multiples of 7 days. The weekday means are estimated on
+    `reference` (default: x itself), so out-of-sample use never peeks at test data.
+    """
+    ref = x if reference is None else reference
+    means = ref.groupby(ref.index.dayofweek).mean()
+    return x - means.reindex(x.index.dayofweek).to_numpy()
+
+
 def structure_function(x: np.ndarray, lags: Iterable[int], q: float = 2.0) -> np.ndarray:
     """m(q, D) = mean |x_{t+D} - x_t|^q over all t with both values present."""
     x = np.asarray(x, dtype=float)
