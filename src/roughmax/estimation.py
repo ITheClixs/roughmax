@@ -64,8 +64,8 @@ def remove_weekly_seasonality(x: pd.Series, reference: pd.Series | None = None) 
     `reference` (default: x itself), so out-of-sample use never peeks at test data.
     """
     ref = x if reference is None else reference
-    means = ref.groupby(ref.index.dayofweek).mean()
-    return x - means.reindex(x.index.dayofweek).to_numpy()
+    means = ref.groupby(ref.index.day_of_week).mean()
+    return x - means.reindex(x.index.day_of_week).to_numpy()
 
 
 def structure_function(x: np.ndarray, lags: Iterable[int], q: float = 2.0) -> np.ndarray:
