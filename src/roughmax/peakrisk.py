@@ -81,21 +81,28 @@ def grid_peak_bound(H: float, nu: float, n: int, alpha: float, noise_sd: float =
     return mean_bound + sigma * math.sqrt(2.0 * math.log(1.0 / alpha))
 
 
-def empirical_grid_peak(x: np.ndarray, n: int, step: int = 1) -> dict[str, float]:
+def empirical_peaks(x: np.ndarray, n: int, step: int = 1) -> np.ndarray:
     """Peak excursions max_{1<=i<=n}(x_{t+i} - x_t) over all complete windows of a series.
 
-    Windows containing a missing value are skipped. Windows overlap when step < n, so the
-    reported standard error uses the effective number of non-overlapping windows.
+    Windows containing a missing value are skipped.
     """
     x = np.asarray(x, dtype=float)
     if n < 1 or x.size <= n:
         raise ValueError("series too short for the requested horizon")
     windows = np.lib.stride_tricks.sliding_window_view(x, n + 1)[::step]
-    complete = np.isfinite(windows).all(axis=1)
-    windows = windows[complete]
-    if windows.shape[0] < 2:
+    windows = windows[np.isfinite(windows).all(axis=1)]
+    return (windows[:, 1:] - windows[:, :1]).max(axis=1)
+
+
+def empirical_grid_peak(x: np.ndarray, n: int, step: int = 1) -> dict[str, float]:
+    """Summary of the empirical peak excursions over n steps (see empirical_peaks).
+
+    Windows overlap when step < n, so the reported standard error uses the effective number
+    of non-overlapping windows.
+    """
+    peaks = empirical_peaks(x, n, step)
+    if peaks.size < 2:
         raise ValueError("fewer than two complete windows")
-    peaks = (windows[:, 1:] - windows[:, :1]).max(axis=1)
     effective = max(1.0, peaks.size * min(1.0, step / n))
     q = np.quantile(peaks, [0.5, 0.9, 0.95, 0.99])
     return {

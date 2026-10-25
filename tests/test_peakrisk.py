@@ -67,3 +67,9 @@ def test_quantile_bound_with_noise_dominates_noisy_simulation():
     bound = peakrisk.grid_peak_bound(H, nu, n, 0.05, noise_sd=s)
     assert bound >= np.quantile(samples, 0.95)
     assert bound > peakrisk.grid_peak_bound(H, nu, n, 0.05)
+
+
+def test_empirical_peaks_values():
+    x = np.array([0.0, 1.0, -1.0, 2.0, 5.0, np.nan])
+    peaks = peakrisk.empirical_peaks(x, 2)
+    np.testing.assert_allclose(peaks, [1.0, 1.0, 6.0])
